@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  php:
+    build:
+      context: '.'
+      dockerfile: ./docker/php/.Dockerfile
+    volumes:
+      - ./:/app
+    networks:
+      - app-tier
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - postgres
+  nginx:
+    image: 'bitnami/nginx:latest'
+    depends_on:
+      - php
+      - postgres
+    ports:
+      - '8000:8000'
+      - '44300:44300'
+    volumes:
+      - ./:/app
+      - ./docker/nginx/nginx.conf:/opt/bitnami/nginx/conf/server_blocks/localhost.conf
+      - ./docker/certs/server.crt:/opt/bitnami/nginx/conf/certs/server.crt:r
+      - ./docker/certs/server.crt:/opt/bitnami/nginx/conf/certs/server.key:r
+      - ./var/log/nginx:/opt/bitnami/nginx/logs/
+      - ./var/log/nginx:/var/log/nginx
+    networks:
+      - app-tier
+  composer_installation:
+    container_name: composer_installation
+    image: composer
+    volumes:
+      - ./:/app
+    command: composer install --ignore-platform-reqs
+    networks:
+      - app-tier
+  postgres:
+    image: postgres:13.3
+    environment:
+      POSTGRES_DB: "dev_testtask"
+      POSTGRES_USER: "admin"
+      POSTGRES_PASSWORD: "admin"
+    ports:
+      - "5432:5432"
+    networks:
+      - app-tier
+networks:
+  app-tier:
+    driver: bridge
